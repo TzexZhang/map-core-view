@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MapCore 2D — Qt WebEngine</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f5f7fa; display: flex; height: 100vh; }
+    .panel { width: 300px; overflow-y: auto; padding: 12px; background: #fff; border-right: 1px solid #ddd; flex-shrink: 0; }
+    .panel h2 { font-size: 16px; margin-bottom: 4px; }
+    .panel .desc { font-size: 12px; color: #666; margin-bottom: 12px; }
+    .panel fieldset { border: 1px solid #ddd; border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+    .panel legend { font-size: 13px; font-weight: bold; color: #333; padding: 0 4px; }
+    .panel button { display: inline-block; margin: 3px; padding: 4px 10px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .panel button:hover { background: #e8f0fe; border-color: #4285f4; }
+    .panel button.active { background: #4285f4; color: #fff; }
+    .right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #map { flex: 1; position: relative; overflow: hidden; }
+    #status { padding: 6px 10px; font-size: 12px; color: #555; background: #f8f9fa; border-top: 1px solid #eee; max-height: 60px; overflow-y: auto; word-break: break-all; }
+    .info { font-size: 11px; color: #888; margin: 4px 0; }
+  </style>
+  <!-- OpenLayers CSS — SDK 自动注入可能不可用（纯 HTML），手动引入 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@9/ol.css" />
+</head>
+<body>
+  <div class="panel">
+    <h2>2D 地图 — Qt WebEngine</h2>
+    <p class="desc">Qt 通过 QWebEngineView 加载此页面，BridgeFactory 自动检测 Qt 环境</p>
+
+    <fieldset>
+      <legend>环境检测</legend>
+      <button onclick="detectEnv()">detectEnvironment()</button>
+      <p class="info" id="envInfo"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>生命周期</legend>
+      <button onclick="createMap()">create()</button>
+      <button onclick="destroyMap()">destroy()</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>图层操作</legend>
+      <button onclick="addVectorLayer()">矢量点</button>
+      <button onclick="addLineLayer()">矢量线</button>
+      <button onclick="addPolygonLayer()">矢量面</button>
+      <button onclick="addHeatmap()">热力图</button>
+      <button onclick="addTileLayer()">瓦片图层</button>
+      <button onclick="removeLayer()">移除 points</button>
+      <button onclick="toggleVisible()">切换可见性</button>
+      <button onclick="setOpacity()">透明度 0.5</button>
+      <button onclick="getLayerStates()">获取所有状态</button>
+      <button onclick="exportConfigs()">导出配置</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>视图控制</legend>
+      <button onclick="flyTo()">flyTo 上海</button>
+      <button onclick="setView()">setView 成都</button>
+      <button onclick="getView()">getView()</button>
+      <button onclick="getBounds()">getBounds()</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>事件系统</legend>
+      <button onclick="subscribeEvents()">订阅事件</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>自定义数据源</legend>
+      <button onclick="registerDataSource()">注册</button>
+      <button onclick="fetchFromSource()">拉取数据</button>
+      <button onclick="startDataSource()">启动定时 3s</button>
+      <button onclick="stopDataSource()">停止定时</button>
+      <button onclick="unregisterDataSource()">注销</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>插件系统</legend>
+      <button onclick="usePlugin()">安装 MeasurePlugin</button>
+      <button onclick="unusePlugin()">卸载 MeasurePlugin</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>工具函数 & 底层</legend>
+      <button onclick="testUtils()">工具函数</button>
+      <button onclick="getNative()">getNativeInstance()</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Bridge 通信</legend>
+      <button onclick="bridgeSend()">bridge.send()</button>
+      <button onclick="bridgeReceive()">bridge.receive()</button>
+    </fieldset>
+  </div>
+
+  <div class="right">
+    <div id="map"></div>
+    <div id="status">点击 create() 初始化地图</div>
+  </div>
+
+  <!-- 通过 CDN 加载 SDK ESM 模块 -->
+  <script type="module">
+    // 注意：本地开发时需替换为本地 SDK 路径或构建产物
+    // 生产环境部署后，将此路径替换为实际 CDN 或内网地址
+    import { MapController, EngineType, LayerType, MapEvents, isValidLngLat, distance, bearing, parseColor, withAlpha, BridgeFactory, BridgeEnvironment } from 'https://cdn.jsdelivr.net/npm/@geomapcore/sdk/dist/mapcore.esm.js';
+
+    // 将 SDK 对象挂载到全局，供按钮 onclick 使用
+    window.SDK = { MapController, EngineType, LayerType, MapEvents, isValidLngLat, distance, bearing, parseColor, withAlpha, BridgeFactory, BridgeEnvironment };
+
+    let map = null;
+    let bridge = null;
+
+    // 示例数据
+    const POINTS = {
+      type: 'FeatureCollection',
+      features: [
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [116.397428, 39.90923] }, properties: { name: '天安门', value: 100 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [116.407428, 39.91923] }, properties: { name: '王府井', value: 80 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [116.387428, 39.89923] }, properties: { name: '前门', value: 60 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [116.417428, 39.89923] }, properties: { name: '建国门', value: 45 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [116.377428, 39.91923] }, properties: { name: '西单', value: 90 } },
+      ]
+    };
+    const LINES = {
+      type: 'FeatureCollection',
+      features: [
+        { type: 'Feature', geometry: { type: 'LineString', coordinates: [[116.38, 39.90], [116.39, 39.91], [116.40, 39.91], [116.41, 39.90]] }, properties: { name: '路线A' } },
+      ]
+    };
+    const POLYGONS = {
+      type: 'FeatureCollection',
+      features: [
+        { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[116.39, 39.91], [116.41, 39.91], [116.41, 39.90], [116.39, 39.90], [116.39, 39.91]]] }, properties: { name: '区域A' } },
+      ]
+    };
+
+    function log(...args) {
+      console.log('[2D-Qt]', ...args);
+      document.getElementById('status').textContent = args.map(String).join(' ');
+    }
+
+    window.detectEnv = function () {
+      const env = BridgeFactory.detectEnvironment();
+      document.getElementById('envInfo').textContent = `当前环境: ${env}`;
+      log('环境:', env);
+    };
+
+    window.createMap = async function () {
+      bridge = BridgeFactory.detect();
+      log('Bridge 类型:', bridge.constructor.name);
+
+      map = await MapController.create({
+        container: 'map',
+        engine: EngineType.OpenLayers,
+        initialView: { center: [116.397428, 39.90923], zoom: 10 },
+      });
+      log('2D 地图创建成功');
+
+      bridge.send('mapReady', { engine: 'openlayers' });
+      bridge.receive((method, params) => {
+        log('Bridge 收到:', method, JSON.stringify(params));
+        if (method === 'updateTargets' && map) {
+          map.updateLayerData('qt-targets', params);
+        }
+      });
+    };
+
+    window.destroyMap = function () {
+      bridge?.destroy(); bridge = null;
+      map?.destroy(); map = null;
+      log('已销毁');
+    };
+
+    window.addVectorLayer = function () { if (!map) return; map.addLayer({ id: 'points', type: LayerType.Vector }); map.updateLayerData('points', POINTS); log('矢量点已添加'); };
+    window.addLineLayer = function () { if (!map) return; map.addLayer({ id: 'lines', type: LayerType.Vector }); map.updateLayerData('lines', LINES); log('矢量线已添加'); };
+    window.addPolygonLayer = function () { if (!map) return; map.addLayer({ id: 'polygons', type: LayerType.Vector }); map.updateLayerData('polygons', POLYGONS); log('矢量面已添加'); };
+    window.addHeatmap = function () { if (!map) return; map.addLayer({ id: 'heatmap', type: LayerType.Heatmap }); map.updateLayerData('heatmap', POINTS); log('热力图已添加'); };
+    window.addTileLayer = function () { if (!map) return; map.addLayer({ id: 'custom-tile', type: LayerType.Tile, url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' }); log('瓦片图层已添加'); };
+    window.removeLayer = function () { if (!map) return; map.removeLayer('points'); log('points 已移除'); };
+    window.toggleVisible = function () { if (!map) return; const s = map.getLayerState('points'); if (s) { map.setLayerVisible('points', !s.visible); log('points visible:', !s.visible); } };
+    window.setOpacity = function () { if (!map) return; map.setLayerOpacity('points', 0.5); log('points opacity: 0.5'); };
+    window.getLayerStates = function () { if (!map) return; const states = map.getLayerStates(); log('图层:', JSON.stringify(states.map(s => s.config.id))); };
+    window.exportConfigs = function () { if (!map) return; const c = map.exportLayerConfigs(); log('导出:', JSON.stringify(c.map(x => x.id))); };
+
+    window.flyTo = function () { if (!map) return; map.flyTo({ center: [121.473, 31.23], zoom: 12, duration: 2000 }); log('飞行到上海'); };
+    window.setView = function () { if (!map) return; map.setView({ center: [104.066, 30.572], zoom: 8, rotation: 0.5 }); log('跳转到成都'); };
+    window.getView = function () { if (!map) return; log('视图:', JSON.stringify(map.getView())); };
+    window.getBounds = function () { if (!map) return; log('范围:', JSON.stringify(map.getBounds())); };
+
+    window.subscribeEvents = function () {
+      if (!map) return;
+      map.on(MapEvents.MAP_CLICK, p => log('click:', JSON.stringify(p.lngLat)));
+      map.on(MapEvents.MAP_MOVEEND, () => log('moveend'));
+      map.on(MapEvents.FEATURE_CLICK, p => log('feature:click:', JSON.stringify(p)));
+      map.on(MapEvents.LAYER_ADD, p => log('layer:add:', p.layerId));
+      log('已订阅 map:click / moveend / feature:click / layer:add');
+    };
+
+    let counter = 0;
+    window.registerDataSource = function () {
+      if (!map) return;
+      map.registerCustomDataSource({
+        id: 'mock-api',
+        async fetch() { counter++; return { type: 'FeatureCollection', features: POINTS.features.map(f => ({ ...f, properties: { ...f.properties, counter } })) }; },
+        dispose() {},
+      });
+      log('数据源已注册');
+    };
+    window.fetchFromSource = async function () { if (!map) return; const d = await map.fetchFromCustomSource('mock-api'); log('拉取:', d.features.length, '个要素'); };
+    window.startDataSource = function () { if (!map) return; map.startCustomDataSource('mock-api', 3000); log('定时 3s 已启动'); };
+    window.stopDataSource = function () { if (!map) return; map.stopCustomDataSource('mock-api'); log('定时已停止'); };
+    window.unregisterDataSource = function () { if (!map) return; map.unregisterCustomDataSource('mock-api'); log('数据源已注销'); };
+
+    let measurePoints = [];
+    window.usePlugin = function () {
+      if (!map) return;
+      map.use({
+        name: 'MeasurePlugin', version: '1.0.0',
+        install(ctx) {
+          ctx.eventBus.on(MapEvents.MAP_CLICK, p => {
+            measurePoints.push(p.lngLat);
+            if (measurePoints.length === 2) {
+              const d = distance(measurePoints[0], measurePoints[1]);
+              ctx.logger.info('Measure', `距离: ${(d/1000).toFixed(2)} km`);
+              log('测量距离:', (d/1000).toFixed(2), 'km');
+              measurePoints = [];
+            }
+          });
+        },
+        uninstall() {},
+      });
+      log('MeasurePlugin 已安装');
+    };
+    window.unusePlugin = function () { if (!map) return; map.unuse('MeasurePlugin'); log('MeasurePlugin 已卸载'); };
+
+    window.testUtils = function () {
+      const v = isValidLngLat([116.397, 39.909]);
+      const d = distance([116.397, 39.909], [121.473, 31.23]);
+      const b = bearing([116.397, 39.909], [121.473, 31.23]);
+      const c = parseColor('#ff0000');
+      const a = withAlpha('#ff0000', 0.5);
+      log(`valid=${v} dist=${(d/1000).toFixed(2)}km bearing=${b.toFixed(2)}° color=${JSON.stringify(c)} alpha=${a}`);
+    };
+
+    window.getNative = function () { if (!map) return; const ol = map.getNativeInstance(); log('OL Map:', ol?.constructor?.name ?? typeof ol); };
+
+    window.bridgeSend = function () { if (!bridge) return; bridge.send('testEvent', { ts: Date.now() }); log('bridge.send() 已发送'); };
+    window.bridgeReceive = function () { if (!bridge) return; bridge.receive((m, p) => log('Bridge 收到:', m, JSON.stringify(p))); log('bridge.receive() 已注册'); };
+  </script>
+</body>
+</html>
