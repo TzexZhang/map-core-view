@@ -66,9 +66,9 @@ function handleGetBounds() { if (!map) return; log('范围:', JSON.stringify(map
 
 function handleSubscribeEvents() {
   if (!map) return
-  map.on(MapEvents.MAP_CLICK, p => log('点击:', p))
+  map.on(MapEvents.MAP_CLICK, (p: any) => log('点击:', p))
   map.on(MapEvents.MAP_MOVEEND, () => log('视图变化'))
-  map.on(MapEvents.FEATURE_CLICK, p => log('要素点击:', p))
+  map.on(MapEvents.FEATURE_CLICK, (p: any) => log('要素点击:', p))
   log('已订阅 click / moveend / feature:click')
 }
 
@@ -77,7 +77,7 @@ function handleRegisterDataSource() {
   let counter = 0
   map.registerCustomDataSource({
     id: 'mock-3d',
-    async fetch(): Promise<GeoJSONFeatureCollection> { counter++; return { type: 'FeatureCollection', features: SAMPLE_GEOJSON_POINTS.features.map(f => ({ ...f, properties: { ...f.properties, counter } })) } },
+    async fetch(): Promise<GeoJSONFeatureCollection> { counter++; return { type: 'FeatureCollection', features: SAMPLE_GEOJSON_POINTS.features.map((f: any) => ({ ...f, properties: { ...f.properties, counter } })) } },
     dispose() {},
   })
   log('3D 数据源已注册')
@@ -88,7 +88,7 @@ function handleStopDataSource() { if (!map) return; map.stopCustomDataSource('mo
 
 function handleUsePlugin() {
   if (!map) return
-  map.use({ name: 'Demo3DPlugin', version: '1.0.0', install(ctx: PluginContext) { ctx.logger.info('Demo3D', '已安装'); ctx.eventBus.on(MapEvents.MAP_CLICK, p => ctx.logger.info('Demo3D', p)) }, uninstall() {} })
+  map.use({ name: 'Demo3DPlugin', version: '1.0.0', install(ctx: PluginContext) { ctx.logger.info('Demo3D', '已安装'); ctx.eventBus.on(MapEvents.MAP_CLICK, (p: any) => ctx.logger.info('Demo3D', p)) }, uninstall() {} })
   log('Demo3DPlugin 已安装')
 }
 

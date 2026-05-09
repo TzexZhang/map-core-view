@@ -19,7 +19,7 @@ function handleDetect() { const b = BridgeFactory.detect(); addLog(`Bridge 实�
 
 async function handleSend() { const b = BridgeFactory.detect(); try { await b.send('test.method', { foo: 'bar', ts: Date.now() }); addLog('send() -> 成功'); log('send 成功') } catch (e) { addLog(`send 失败: ${e}`); log('send 失败:', e) } }
 
-function handleReceive() { const b = BridgeFactory.detect(); b.receive((m, p) => { addLog(`receive: ${m} ${JSON.stringify(p)}`); log('收到:', m, p) }); addLog('receive() 已注册'); log('receive 已注册') }
+function handleReceive() { const b = BridgeFactory.detect(); b.receive((m: any, p: any) => { addLog(`receive: ${m} ${JSON.stringify(p)}`); log('收到:', m, p) }); addLog('receive() 已注册'); log('receive 已注册') }
 
 function handleDestroy() { const b = BridgeFactory.detect(); b.destroy(); addLog('Bridge 已销毁'); log('destroy') }
 </script>

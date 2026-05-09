@@ -131,10 +131,10 @@ function handleGetBounds() { if (!map) return; log('范围:', JSON.stringify(map
 /** 订阅事件 */
 function handleSubscribeEvents() {
   if (!map) return
-  map.on(MapEvents.MAP_CLICK, p => log('地图点击:', p))
-  map.on(MapEvents.MAP_MOVEEND, p => log('视图变化:', p))
-  map.on(MapEvents.FEATURE_CLICK, p => log('要素点击:', p))
-  map.on(MapEvents.LAYER_ADD, p => log('图层添加:', p))
+  map.on(MapEvents.MAP_CLICK, (p: any) => log('地图点击:', p))
+  map.on(MapEvents.MAP_MOVEEND, (p: any) => log('视图变化:', p))
+  map.on(MapEvents.FEATURE_CLICK, (p: any) => log('要素点击:', p))
+  map.on(MapEvents.LAYER_ADD, (p: any) => log('图层添加:', p))
   log('已订阅 map:click / moveend / feature:click / layer:add')
 }
 
@@ -146,7 +146,7 @@ function handleRegisterDataSource() {
     id: 'mock-targets',
     async fetch(): Promise<GeoJSONFeatureCollection> {
       counter++
-      return { type: 'FeatureCollection', features: SAMPLE_GEOJSON_POINTS.features.map(f => ({ ...f, properties: { ...f.properties, counter } })) }
+      return { type: 'FeatureCollection', features: SAMPLE_GEOJSON_POINTS.features.map((f: any) => ({ ...f, properties: { ...f.properties, counter } })) }
     },
     dispose() {},
   }
@@ -177,7 +177,7 @@ function handleUsePlugin() {
     name: 'DemoPlugin', version: '1.0.0',
     install(ctx: PluginContext) {
       ctx.logger.info('DemoPlugin', '插件已安装')
-      ctx.eventBus.on(MapEvents.MAP_CLICK, p => ctx.logger.info('DemoPlugin', '点击:', p))
+      ctx.eventBus.on(MapEvents.MAP_CLICK, (p: any) => ctx.logger.info('DemoPlugin', '点击:', p))
     },
     uninstall() {},
   }

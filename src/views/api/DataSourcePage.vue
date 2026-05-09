@@ -26,7 +26,7 @@ function handleRegister() {
   let counter = 0
   const source: ICustomDataSource = {
     id: 'mock-api',
-    async fetch(): Promise<GeoJSONFeatureCollection> { counter++; return { type: 'FeatureCollection', features: SAMPLE_GEOJSON_POINTS.features.map(f => ({ ...f, properties: { ...f.properties, counter, timestamp: Date.now() } })) } },
+    async fetch(): Promise<GeoJSONFeatureCollection> { counter++; return { type: 'FeatureCollection', features: SAMPLE_GEOJSON_POINTS.features.map((f: any) => ({ ...f, properties: { ...f.properties, counter, timestamp: Date.now() } })) } },
     dispose() {},
   }
   map.registerCustomDataSource(source)

@@ -30,7 +30,7 @@ function handleInstallMeasure() {
 
 function handleInstallLogger() {
   if (!map) return
-  map.use({ name: 'EventLogger', version: '1.0.0', install(ctx: PluginContext) { ctx.eventBus.on(MapEvents.MAP_CLICK, p => ctx.logger.info('Logger', p)); pluginStatus.value = 'EventLogger: 已订阅 click' }, uninstall() {} })
+  map.use({ name: 'EventLogger', version: '1.0.0', install(ctx: PluginContext) { ctx.eventBus.on(MapEvents.MAP_CLICK, (p: any) => ctx.logger.info('Logger', p)); pluginStatus.value = 'EventLogger: 已订阅 click' }, uninstall() {} })
   log('EventLogger 已安装')
 }
 

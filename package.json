@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "node -e \"const fs=require('fs');const p='dist';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true,force:true})}\" && vue-tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
